@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}{{ pot.name }} — FillPot{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 28px; flex-wrap: wrap;">
+  <div>
+    <a href="{% url 'pots:dashboard' %}" class="back-link">← My pots</a>
+    <h1 class="page-title">{{ pot.name }}</h1>
+    <p class="page-sub" style="margin-top: 4px; text-transform: capitalize;">
+      {{ pot.get_pot_type_display }} · {{ pot.get_occasion_type_display }}
+      ·
+      <span class="badge
+        {% if pot.status == 'active' %}badge-active
+        {% elif pot.status == 'closed' %}badge-closed
+        {% else %}badge-cancelled{% endif %}"
+        style="vertical-align: middle; margin-left: 2px;">
+        {{ pot.get_status_display }}
+      </span>
+    </p>
+  </div>
+</div>
+
+<!-- Invite link -->
+{% if pot.status == 'active' %}
+<div class="invite-row" style="margin-bottom: 28px;">
+  <span class="invite-url" id="invite-url">{{ request.scheme }}://{{ request.get_host }}/p/{{ pot.slug }}/</span>
+  <button class="copy-btn" onclick="copyInvite()">Copy link</button>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stats-grid" style="margin-bottom: 28px;">
+  <div class="stat-box">
+    <p class="stat-label">Total collected</p>
+    <p class="stat-value">₦{{ pot.total_collected|floatformat:0 }}</p>
+  </div>
+  {% if pot.target_amount %}
+  <div class="stat-box">
+    <p class="stat-label">Target</p>
+    <p class="stat-value">₦{{ pot.target_amount|floatformat:0 }}</p>
+  </div>
+  {% endif %}
+  <div class="stat-box">
+    <p class="stat-label">Contributors</p>
+    <p class="stat-value">{{ pot.contributor_count }}</p>
+  </div>
+  {% if pot.deadline %}
+  <div class="stat-box">
+    <p class="stat-label">Deadline</p>
+    <p class="stat-value" style="font-size: 16px;">{{ pot.deadline|date:"M j, Y" }}</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Contributors table -->
+<div class="card" style="overflow: hidden;">
+  <div style="padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+    <h2 style="font-size: 14px; font-weight: 400; color: #ccc;">Contributors</h2>
+    <span style="font-size: 12px; color: var(--muted);">{{ contributors|length }}</span>
+  </div>
+
+  {% if contributors %}
+    <div style="overflow-x: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            {% if pot.pot_type == 'contribution' %}
+              <th class="r">Intended</th>
+              <th class="r">Paid</th>
+            {% else %}
+              <th class="r">Pledged</th>
+              <th class="r">Paid</th>
+            {% endif %}
+            <th>Status</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contributor in contributors %}
+            <tr>
+              <td class="td-primary">{{ contributor.display_name }}</td>
+              <td class="td-muted">{{ contributor.email }}</td>
+              {% if pot.pot_type == 'contribution' %}
+                {% with c=contributor.contribution %}
+                  <td class="r">{% if c %}₦{{ c.intended_amount|floatformat:0 }}{% else %}—{% endif %}</td>
+                  <td class="r">{% if c %}₦{{ c.total_paid|floatformat:0 }}{% else %}—{% endif %}</td>
+                  <td>
+                    {% if c %}
+                      <span class="badge
+                        {% if c.status == 'confirmed' %}badge-confirmed
+                        {% elif c.status == 'partial' %}badge-partial
+                        {% elif c.status == 'overpaid' %}badge-overpaid
+                        {% else %}badge-pending{% endif %}">
+                        {{ c.get_status_display }}
+                      </span>
+                    {% else %}—{% endif %}
+                  </td>
+                {% endwith %}
+              {% else %}
+                {% with p=contributor.pledge %}
+                  <td class="r">{% if p %}₦{{ p.pledged_amount|floatformat:0 }}{% else %}—{% endif %}</td>
+                  <td class="r">{% if p %}₦{{ p.total_paid|floatformat:0 }}{% else %}—{% endif %}</td>
+                  <td>
+                    {% if p %}
+                      <span class="badge {% if p.is_complete %}badge-complete{% else %}badge-progress{% endif %}">
+                        {% if p.is_complete %}Complete{% else %}In progress{% endif %}
+                      </span>
+                    {% else %}—{% endif %}
+                  </td>
+                {% endwith %}
+              {% endif %}
+              <td class="td-muted">{{ contributor.created_at|date:"M j" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p style="text-align: center; color: var(--muted); padding: 48px 20px; font-size: 14px;">
+      No contributors yet — share the invite link to get started.
+    </p>
+  {% endif %}
+</div>
+
+<!-- Withdrawal section -->
+{% if pot.total_collected > 0 %}
+<div class="card card-p" style="margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+  <div>
+    <p style="margin: 0 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Funds collected</p>
+    <p style="margin: 0; font-size: 22px; font-weight: 300; color: var(--fg); letter-spacing: -0.02em;">₦{{ pot.total_collected|floatformat:0 }}</p>
+  </div>
+
+  {% if not withdrawal %}
+    <a href="{% url 'pots:withdrawal' pot.slug %}" class="btn-white">Withdraw →</a>
+  {% elif withdrawal.status == 'pending' %}
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: #facc15; animation: pulse 1.5s infinite;"></div>
+      <span class="badge badge-pending">Transfer in progress</span>
+    </div>
+  {% elif withdrawal.status == 'success' %}
+    <span class="badge badge-confirmed">Withdrawn {% if withdrawal.completed_at %}{{ withdrawal.completed_at|date:"M j" }}{% endif %}</span>
+  {% elif withdrawal.status == 'failed' %}
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+      <span class="badge badge-overpaid">Transfer failed</span>
+      <a href="{% url 'pots:withdrawal' pot.slug %}" style="font-size: 12px; color: var(--muted);">Retry →</a>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+  function copyInvite() {
+    const url = document.getElementById('invite-url').textContent.trim();
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy link', 2000);
+    });
+  }
+</script>
+
+<style>
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+</style>
+
+{% endblock %}

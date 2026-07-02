@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ pot.name }} — Closed — FillPot{% endblock %}
+
+{% block content %}
+<div class="content-narrow" style="text-align: center; padding-top: 80px;">
+
+  <p style="font-size: 11px; color: var(--dimmed); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;">
+    Pot closed
+  </p>
+
+  <h1 class="page-title" style="margin-bottom: 12px;">This pot is no longer accepting contributions.</h1>
+  <p class="page-sub" style="margin-bottom: 32px;">{{ pot.name }} has been closed by the organiser.</p>
+
+  <a href="{% url 'pots:public_pot' pot.slug %}" class="btn btn-ghost">
+    View the pot →
+  </a>
+
+</div>
+{% endblock %}

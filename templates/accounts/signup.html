@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Create account — FillPot{% endblock %}
+
+{% block content %}
+<div class="content-narrow" style="padding-top: 40px;">
+
+  <div style="margin-bottom: 32px;">
+    <h1 class="page-title">Create your account.</h1>
+    <p class="page-sub" style="margin-top: 6px;">Free to use. Your first pot is ready in under two minutes.</p>
+  </div>
+
+  <div class="card card-p">
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% for field in form %}
+        <div class="form-group">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field.as_widget }}
+          {% for error in field.errors %}
+            <span class="field-error">{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endfor %}
+
+      <button type="submit" class="btn btn-white btn-block" style="margin-top: 4px;">
+        Create account →
+      </button>
+    </form>
+  </div>
+
+  <p style="text-align: center; font-size: 13px; color: var(--muted); margin-top: 20px;">
+    Already have an account? <a href="{% url 'accounts:login' %}" style="color: #ccc; text-decoration: none;">Sign in →</a>
+  </p>
+
+</div>
+{% endblock %}

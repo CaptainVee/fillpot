@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}My pots — FillPot{% endblock %}
+
+{% block content %}
+
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px;">
+  <div>
+    <h1 class="page-title">My pots</h1>
+    <p class="page-sub" style="margin-top: 4px;">{{ user.full_name }}</p>
+  </div>
+  <a href="{% url 'pots:create' %}" class="btn btn-white">+ New pot</a>
+</div>
+
+{% if pots %}
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    {% for pot in pots %}
+      <a href="{% url 'pots:organiser_detail' pot.slug %}"
+         class="card card-p card-hover"
+         style="display: block; text-decoration: none;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px;">
+          <div style="min-width: 0;">
+            <p style="font-size: 16px; font-weight: 400; color: #e0e0e0; letter-spacing: -0.01em; margin-bottom: 3px;">
+              {{ pot.name }}
+            </p>
+            <p style="font-size: 12px; color: var(--muted); text-transform: capitalize;">
+              {{ pot.get_pot_type_display }} · {{ pot.get_occasion_type_display }}
+            </p>
+          </div>
+          <span class="badge
+            {% if pot.status == 'active' %}badge-active
+            {% elif pot.status == 'closed' %}badge-closed
+            {% else %}badge-cancelled{% endif %}"
+            style="flex-shrink: 0;">
+            {{ pot.get_status_display }}
+          </span>
+        </div>
+
+        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+          <div>
+            <p class="stat-label">Collected</p>
+            <p style="font-size: 17px; font-weight: 300; color: #fff; letter-spacing: -0.02em;">
+              ₦{{ pot.total_collected|floatformat:0 }}
+            </p>
+          </div>
+          {% if pot.target_amount %}
+          <div>
+            <p class="stat-label">Target</p>
+            <p style="font-size: 17px; font-weight: 300; color: #fff; letter-spacing: -0.02em;">
+              ₦{{ pot.target_amount|floatformat:0 }}
+            </p>
+          </div>
+          {% endif %}
+          <div>
+            <p class="stat-label">Contributors</p>
+            <p style="font-size: 17px; font-weight: 300; color: #fff; letter-spacing: -0.02em;">
+              {{ pot.contributor_count }}
+            </p>
+          </div>
+          {% if pot.deadline %}
+          <div>
+            <p class="stat-label">Deadline</p>
+            <p style="font-size: 17px; font-weight: 300; color: #fff; letter-spacing: -0.02em;">
+              {{ pot.deadline|date:"M j, Y" }}
+            </p>
+          </div>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+{% else %}
+  <div style="text-align: center; padding: 80px 0; color: var(--muted);">
+    <p style="font-size: 17px; font-weight: 300; margin-bottom: 24px;">
+      You haven't created any pots yet.
+    </p>
+    <a href="{% url 'pots:create' %}" class="btn btn-white btn-lg">
+      Create your first pot →
+    </a>
+  </div>
+{% endif %}
+
+{% endblock %}

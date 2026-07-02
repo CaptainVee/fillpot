@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}
+  {% if pot.pot_type == 'contribution' %}Contribute to{% else %}Pledge for{% endif %}
+  {{ pot.name }} — FillPot
+{% endblock %}
+
+{% block content %}
+<div class="content-narrow" style="padding-top: 20px;">
+
+  <a href="{% url 'pots:public_pot' pot.slug %}" class="back-link">← {{ pot.name }}</a>
+
+  <div style="margin-bottom: 28px;">
+    <h1 class="page-title">
+      {% if pot.pot_type == 'contribution' %}Contribute to this pot.{% else %}Make a pledge.{% endif %}
+    </h1>
+    <p class="page-sub" style="margin-top: 6px;">
+      You'll receive a dedicated bank account number — transfer to it from any Nigerian bank app.
+    </p>
+  </div>
+
+  <div class="card card-p">
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% for field in form %}
+        {% if field.field.widget.input_type == 'checkbox' %}
+          <div class="checkbox-row">
+            {{ field }}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          </div>
+        {% else %}
+          <div class="form-group">
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+              <span class="help-text">{{ field.help_text }}</span>
+            {% endif %}
+            {% for error in field.errors %}
+              <span class="field-error">{{ error }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <button type="submit" class="btn btn-white btn-block" style="margin-top: 4px;">
+        Get my bank account number →
+      </button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

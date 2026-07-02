@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment received — {{ pot.name }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e8e8;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#000;padding:22px 32px;">
+            <p style="margin:0;color:#fff;font-size:17px;font-weight:500;letter-spacing:-0.02em;">FillPot</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px;">
+
+            <p style="margin:0 0 6px;font-size:13px;color:#999;letter-spacing:0.06em;text-transform:uppercase;">{{ pot.get_occasion_type_display }}</p>
+            <h1 style="margin:0 0 24px;font-size:22px;font-weight:400;color:#111;letter-spacing:-0.02em;">{{ pot.name }}</h1>
+
+            <p style="margin:0 0 20px;font-size:15px;color:#333;line-height:1.6;">
+              Hi {{ contributor.full_name }}, your payment has been
+              {% if status_label == 'Confirmed' %}<strong style="color:#16a34a;">confirmed</strong>
+              {% elif status_label == 'Partial' %}partially received
+              {% elif status_label == 'Overpaid' %}received (you've paid over the target — thank you!)
+              {% else %}received{% endif %}.
+            </p>
+
+            <!-- Amount card -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="padding-bottom:12px;">
+                        <p style="margin:0 0 2px;font-size:11px;color:#999;letter-spacing:0.06em;text-transform:uppercase;">This transfer</p>
+                        <p style="margin:0;font-size:26px;font-weight:300;color:#111;letter-spacing:-0.03em;">₦{{ payment.amount_naira|floatformat:0 }}</p>
+                      </td>
+                    </tr>
+                    {% if intended %}
+                    <tr>
+                      <td style="border-top:1px solid #eee;padding-top:12px;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="font-size:13px;color:#666;">Total paid</td>
+                            <td align="right" style="font-size:13px;color:#111;font-weight:500;">₦{{ total_paid|floatformat:0 }}</td>
+                          </tr>
+                          <tr>
+                            <td style="font-size:13px;color:#666;padding-top:6px;">
+                              {% if pot.pot_type == 'contribution' %}Amount to pay{% else %}Total pledged{% endif %}
+                            </td>
+                            <td align="right" style="font-size:13px;color:#111;font-weight:500;padding-top:6px;">₦{{ intended|floatformat:0 }}</td>
+                          </tr>
+                          <tr>
+                            <td style="font-size:13px;color:#666;padding-top:6px;">Status</td>
+                            <td align="right" style="padding-top:6px;">
+                              <span style="font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;
+                                {% if status_label == 'Confirmed' or status_label == 'Complete' %}background:#dcfce7;color:#16a34a;
+                                {% elif status_label == 'Partial' or status_label == 'In progress' %}background:#fef9c3;color:#a16207;
+                                {% elif status_label == 'Overpaid' %}background:#ffedd5;color:#c2410c;
+                                {% else %}background:#f1f5f9;color:#64748b;{% endif %}">
+                                {{ status_label }}
+                              </span>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    {% endif %}
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            {% if contributor.virtual_account_number %}
+            <!-- Account reminder -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:16px 20px;">
+                  <p style="margin:0 0 4px;font-size:11px;color:#16a34a;letter-spacing:0.06em;text-transform:uppercase;">Your dedicated account</p>
+                  <p style="margin:0 0 2px;font-size:20px;font-family:'Courier New',monospace;letter-spacing:0.06em;color:#111;">{{ contributor.virtual_account_number }}</p>
+                  <p style="margin:0;font-size:13px;color:#555;">{{ contributor.virtual_account_bank_name }}</p>
+                </td>
+              </tr>
+            </table>
+            {% endif %}
+
+            <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">
+              Use the same account number for future transfers — your name will appear on the live feed automatically.
+            </p>
+
+            {% if site_url %}
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
+              <tr>
+                <td>
+                  <a href="{{ site_url }}/p/{{ pot.slug }}/"
+                     style="display:inline-block;background:#000;color:#fff;text-decoration:none;padding:11px 22px;border-radius:999px;font-size:13px;font-weight:500;">
+                    View the pot →
+                  </a>
+                </td>
+              </tr>
+            </table>
+            {% endif %}
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:16px 32px;border-top:1px solid #f0f0f0;background:#fafafa;">
+            <p style="margin:0;font-size:12px;color:#bbb;">FillPot · Powered by Nomba payment infrastructure</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

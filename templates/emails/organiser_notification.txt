@@ -1,0 +1,12 @@
+Hi {{ organiser.full_name }},
+
+{{ contributor.display_name }} just transferred ₦{{ payment.amount_naira|floatformat:0 }} to {{ pot.name }}.
+
+  Total collected: ₦{{ pot.total_collected|floatformat:0 }}{% if pot.target_amount %} of ₦{{ pot.target_amount|floatformat:0 }}{% endif %}
+  Contributors:    {{ pot.contributor_count }}
+
+{% if site_url %}Manage your pot:
+{{ site_url }}/manage/{{ pot.slug }}/
+{% endif %}
+
+— FillPot

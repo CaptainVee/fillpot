@@ -1,0 +1,14 @@
+{% if error %}
+<p style="margin: 10px 0 0; font-size: 13px; color: var(--muted);">
+  Could not verify — {{ error }}
+</p>
+<input type="hidden" name="account_name" value="">
+{% elif account_name %}
+<div style="display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 14px; background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.25); border-radius: 8px;">
+  <span style="color: #4ade80; font-size: 14px;">✓</span>
+  <span style="font-size: 14px; color: var(--fg); font-weight: 500;">{{ account_name }}</span>
+</div>
+<input type="hidden" name="account_name" value="{{ account_name }}">
+{% else %}
+<input type="hidden" name="account_name" value="">
+{% endif %}

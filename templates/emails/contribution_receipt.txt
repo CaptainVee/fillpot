@@ -1,0 +1,16 @@
+Hi {{ contributor.full_name }},
+
+Your payment to {{ pot.name }} has been received.
+
+  Amount this transfer: ₦{{ payment.amount_naira|floatformat:0 }}
+  Total paid so far:    ₦{{ total_paid|floatformat:0 }}{% if intended %}
+  Amount to pay:        ₦{{ intended|floatformat:0 }}{% endif %}
+  Status:               {{ status_label }}
+
+{% if contributor.virtual_account_number %}Your dedicated account number is {{ contributor.virtual_account_number }} ({{ contributor.virtual_account_bank_name }}). Use this same account for any future transfers to this pot.
+{% endif %}
+{% if site_url %}Track your contribution:
+{{ site_url }}/p/{{ pot.slug }}/{{ contributor.id }}/
+{% endif %}
+
+— FillPot

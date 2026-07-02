@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FillPot — Group money, without the chaos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #000;
+      --text: #fff;
+      --muted: #888;
+      --dimmed: #444;
+      --card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --border-bright: rgba(255,255,255,0.22);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: #000;
+      background-image: radial-gradient(rgba(255,255,255,0.11) 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ─────────────────────────────────────── */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+      border-bottom: 1px solid transparent;
+    }
+    .nav.scrolled {
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom-color: var(--border);
+    }
+    .nav-logo {
+      font-size: 18px;
+      font-weight: 500;
+      color: #fff;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    .nav-links a {
+      color: #999;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 400;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+
+    /* ── BUTTONS ─────────────────────────────────── */
+    .btn-white {
+      background: #fff;
+      color: #000;
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .btn-white:hover { opacity: 0.82; color: #000; }
+
+    .btn-ghost {
+      color: #ccc;
+      padding: 10px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      font-size: 14px;
+      font-weight: 400;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.45); color: #fff; }
+
+    /* ── HERO ────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 130px 40px 80px;
+      display: flex;
+      align-items: center;
+      gap: 72px;
+      position: relative;
+    }
+
+    /* Soft radial glow behind hero text */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 40%;
+      left: -5%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(255,255,255,0.035) 0%, transparent 65%);
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+
+    .hero-left {
+      flex: 1;
+      min-width: 0;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 0.8s ease-out 0.1s forwards;
+    }
+
+    .hero-eyebrow {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    .hero-headline {
+      font-size: clamp(42px, 5.5vw, 68px);
+      font-weight: 300;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      color: #fff;
+      margin-bottom: 24px;
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 380px;
+      margin-bottom: 44px;
+      font-weight: 300;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ── LIVE WIDGET ─────────────────────────────── */
+    .hero-right {
+      flex: 0 0 300px;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 0.8s ease-out 0.35s forwards;
+    }
+
+    .pot-widget {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .widget-header {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .widget-pot-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #ddd;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+
+    .widget-stats {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .widget-total {
+      font-size: 26px;
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .widget-count {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .widget-progress {
+      margin-top: 12px;
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .widget-progress-fill {
+      height: 100%;
+      width: 57%;
+      background: rgba(255,255,255,0.55);
+      border-radius: 2px;
+      animation: progressIn 1.2s ease-out 0.8s both;
+    }
+
+    @keyframes progressIn {
+      from { width: 0% } to { width: 57% }
+    }
+
+    .widget-feed {
+      padding: 8px 0;
+      min-height: 170px;
+    }
+
+    .feed-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+
+    .feed-item.is-new {
+      animation: slideIn 0.4s ease-out both;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .feed-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      flex-shrink: 0;
+    }
+
+    .feed-dot.pulse {
+      background: rgba(255,255,255,0.85);
+      animation: dotPulse 1.4s ease-out both;
+    }
+
+    @keyframes dotPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.5); background: rgba(255,255,255,0.9); }
+      70%  { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
+      100% { background: rgba(255,255,255,0.35); box-shadow: 0 0 0 0 transparent; }
+    }
+
+    .feed-name {
+      flex: 1;
+      color: #ccc;
+      font-weight: 400;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .feed-amount {
+      color: #fff;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .feed-time {
+      font-size: 11px;
+      color: var(--dimmed);
+      white-space: nowrap;
+      min-width: 44px;
+      text-align: right;
+    }
+
+    .widget-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .widget-cta {
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .widget-cta:hover { color: #fff; }
+
+    /* ── SECTIONS COMMON ─────────────────────────── */
+    .section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 100px 40px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: clamp(28px, 3.5vw, 42px);
+      font-weight: 300;
+      letter-spacing: -0.025em;
+      color: #fff;
+      line-height: 1.1;
+      margin-bottom: 56px;
+    }
+
+    .section-divider {
+      width: 100%;
+      height: 1px;
+      background: var(--border);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ── HOW IT WORKS ────────────────────────────── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .step {
+      background: var(--bg);
+      padding: 36px 32px;
+      position: relative;
+    }
+
+    .step:not(:last-child)::after {
+      content: '→';
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--dimmed);
+      font-size: 16px;
+      z-index: 1;
+    }
+
+    .step-num {
+      font-size: 11px;
+      color: var(--dimmed);
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+    }
+
+    .step-title {
+      font-size: 17px;
+      font-weight: 400;
+      color: #fff;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    /* ── FEATURES ────────────────────────────────── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border-bright);
+      transform: scale(1.01);
+    }
+
+    .feature-icon {
+      font-size: 22px;
+      margin-bottom: 16px;
+      display: block;
+      filter: grayscale(0.3);
+    }
+
+    .feature-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: #ddd;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    /* ── CTA SECTION ─────────────────────────────── */
+    .cta-section {
+      text-align: center;
+      padding: 120px 40px;
+      position: relative;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .cta-section h2 {
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 300;
+      letter-spacing: -0.03em;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+
+    .cta-section p {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 40px;
+    }
+
+    /* ── FOOTER ──────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-logo {
+      font-size: 15px;
+      font-weight: 500;
+      color: #555;
+      letter-spacing: -0.02em;
+    }
+
+    footer p {
+      font-size: 13px;
+      color: var(--dimmed);
+    }
+
+    footer a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    footer a:hover { color: #888; }
+
+    /* ── ANIMATIONS ──────────────────────────────── */
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero { flex-direction: column; gap: 48px; padding-top: 110px; }
+      .hero-right { flex: none; width: 100%; }
+      .pot-widget { max-width: 400px; margin: 0 auto; }
+      .steps { grid-template-columns: 1fr; }
+      .step:not(:last-child)::after { display: none; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      .section { padding: 72px 24px; }
+      .nav { padding: 18px 24px; }
+    }
+
+    @media (max-width: 560px) {
+      .feature-grid { grid-template-columns: 1fr; }
+      .hero-headline { font-size: 38px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav" id="nav">
+    <a href="/" class="nav-logo">FillPot</a>
+    <div class="nav-links">
+      <a href="#how-it-works">How it works</a>
+      <a href="{% url 'accounts:login' %}">Sign in</a>
+      <a href="{% url 'accounts:signup' %}" class="btn-white">Get started</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <p class="hero-eyebrow">Built on Nomba · Nigeria</p>
+      <h1 class="hero-headline">
+        Everyone gets<br>
+        their own<br>
+        account number.
+      </h1>
+      <p class="hero-sub">
+        Create a pot, share the link. Every contributor receives a dedicated NUBAN — the moment they transfer, their name appears. No chasing. No screenshots.
+      </p>
+      <div class="hero-ctas">
+        <a href="{% url 'accounts:signup' %}" class="btn-white">Create a pot →</a>
+        <a href="#how-it-works" class="btn-ghost">See how it works</a>
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div class="pot-widget">
+        <div class="widget-header">
+          <p class="widget-pot-name">Tunde's Wedding Fund</p>
+          <div class="widget-stats">
+            <span class="widget-total" id="widget-total">₦284,500</span>
+            <span class="widget-count" id="widget-count">12 contributors</span>
+          </div>
+          <div class="widget-progress">
+            <div class="widget-progress-fill" id="widget-progress"></div>
+          </div>
+        </div>
+        <div class="widget-feed">
+          <ul id="feed-list" style="list-style:none;">
+            <li class="feed-item">
+              <span class="feed-dot"></span>
+              <span class="feed-name">Adaeze K.</span>
+              <span class="feed-amount">₦8,500</span>
+              <span class="feed-time" data-minutes="3">3 min ago</span>
+            </li>
+            <li class="feed-item">
+              <span class="feed-dot"></span>
+              <span class="feed-name">Emeka O.</span>
+              <span class="feed-amount">₦15,000</span>
+              <span class="feed-time" data-minutes="6">6 min ago</span>
+            </li>
+            <li class="feed-item">
+              <span class="feed-dot"></span>
+              <span class="feed-name">Blessing N.</span>
+              <span class="feed-amount">₦10,000</span>
+              <span class="feed-time" data-minutes="11">11 min ago</span>
+            </li>
+          </ul>
+        </div>
+        <div class="widget-footer">
+          <a href="{% url 'accounts:signup' %}" class="widget-cta">Start your own pot →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- HOW IT WORKS -->
+  <section class="section" id="how-it-works">
+    <p class="section-label">The flow</p>
+    <h2 class="section-title">Three steps.<br>Zero spreadsheets.</h2>
+    <div class="steps">
+      <div class="step">
+        <p class="step-num">01</p>
+        <h3 class="step-title">Create your pot</h3>
+        <p class="step-desc">Name it, set a target and deadline. Choose a contribution pot for open amounts or a pledge pot for installment commitments.</p>
+      </div>
+      <div class="step">
+        <p class="step-num">02</p>
+        <h3 class="step-title">Share the link</h3>
+        <p class="step-desc">Every pot gets a unique invite link. Drop it in WhatsApp, Twitter, or email — no app, no sign-up needed to contribute.</p>
+      </div>
+      <div class="step">
+        <p class="step-num">03</p>
+        <h3 class="step-title">Watch it fill</h3>
+        <p class="step-desc">Each contributor gets a dedicated Nomba virtual account. The moment they transfer, their name appears on the live feed — automatically.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- FEATURES -->
+  <section class="section">
+    <p class="section-label">What you get</p>
+    <h2 class="section-title">Built for the organiser<br>who's done chasing.</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="feature-icon">🏦</span>
+        <h3 class="feature-title">Dedicated virtual accounts</h3>
+        <p class="feature-desc">Every contributor gets their own NUBAN. Payments are attributed instantly — no reference codes, no guessing "which Emeka sent this."</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <h3 class="feature-title">Live feed, real-time</h3>
+        <p class="feature-desc">The public pot page updates the instant a transfer lands. The social pressure to contribute is built right in.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🤝</span>
+        <h3 class="feature-title">Pledge pots</h3>
+        <p class="feature-desc">Contributors commit to a total and pay in installments. Each transfer accumulates against their pledge, automatically.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">💸</span>
+        <h3 class="feature-title">One-tap withdrawal</h3>
+        <p class="feature-desc">Verify your bank account and withdraw the full balance directly to any Nigerian bank. One step, no paperwork.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📧</span>
+        <h3 class="feature-title">Automatic receipts</h3>
+        <p class="feature-desc">Contributors get an email the moment their payment confirms. No more "did you see my alert?" messages in the group.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">👤</span>
+        <h3 class="feature-title">No account needed to pay</h3>
+        <p class="feature-desc">Contributors fill a name and email — that's it. No sign-up, no app download, no friction between intent and transfer.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- BOTTOM CTA -->
+  <div class="cta-section">
+    <h2>Fill your pot.</h2>
+    <p>Free to use. No card required. Live in under two minutes.</p>
+    <a href="{% url 'accounts:signup' %}" class="btn-white" style="font-size:15px; padding: 14px 32px;">
+      Create your pot now →
+    </a>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <span class="footer-logo">FillPot</span>
+    <p>Powered by <a href="https://nomba.com">Nomba</a> payment infrastructure</p>
+  </footer>
+
+  <script>
+    // Nav scroll blur
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 24);
+    }, { passive: true });
+
+    // Live feed animation
+    const feedEntries = [
+      ['Chioma A.',  '₦25,000',  25000],
+      ['Tunde B.',   '₦20,000',  20000],
+      ['Ngozi F.',   '₦12,000',  12000],
+      ['Kelechi M.', '₦5,000',    5000],
+      ['Funke A.',   '₦30,000',  30000],
+      ['Seun O.',    '₦18,500',  18500],
+      ['Yetunde K.', '₦8,000',    8000],
+      ['Dami P.',    '₦22,000',  22000],
+    ];
+
+    let feedIdx   = 0;
+    let runTotal  = 284500;
+    let runCount  = 12;
+    const TARGET  = 500000;
+
+    function addFeedEntry() {
+      const [name, label, value] = feedEntries[feedIdx % feedEntries.length];
+      feedIdx++;
+      runTotal += value;
+      runCount++;
+
+      // Update header
+      document.getElementById('widget-total').textContent =
+        '₦' + runTotal.toLocaleString('en-NG');
+      document.getElementById('widget-count').textContent =
+        runCount + ' contributors';
+
+      // Update progress bar (cap at 100%)
+      const pct = Math.min(100, Math.round((runTotal / TARGET) * 100));
+      document.getElementById('widget-progress').style.width = pct + '%';
+
+      // Build new list item
+      const li = document.createElement('li');
+      li.className = 'feed-item is-new';
+      li.innerHTML =
+        '<span class="feed-dot pulse"></span>' +
+        '<span class="feed-name">' + name + '</span>' +
+        '<span class="feed-amount">' + label + '</span>' +
+        '<span class="feed-time" data-minutes="0">just now</span>';
+
+      const list = document.getElementById('feed-list');
+
+      // Bump existing "just now" entries
+      list.querySelectorAll('[data-minutes="0"]').forEach(el => {
+        el.dataset.minutes = '1';
+        el.textContent = '1 min ago';
+      });
+
+      list.prepend(li);
+
+      // Remove pulse class after animation
+      setTimeout(() => li.classList.remove('is-new'), 500);
+
+      // Keep max 4 entries visible
+      const items = list.querySelectorAll('li');
+      if (items.length > 4) items[items.length - 1].remove();
+    }
+
+    // First entry after a short delay, then every 2.8s
+    setTimeout(() => {
+      addFeedEntry();
+      setInterval(addFeedEntry, 2800);
+    }, 2200);
+
+    // Tick "X min ago" times every 60s
+    setInterval(() => {
+      document.querySelectorAll('.feed-time[data-minutes]').forEach(el => {
+        const m = parseInt(el.dataset.minutes) + 1;
+        el.dataset.minutes = m;
+        el.textContent = m === 1 ? '1 min ago' : m + ' min ago';
+      });
+    }, 60000);
+  </script>
+
+</body>
+</html>

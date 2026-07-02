@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}{{ pot.name }} — FillPot{% endblock %}
+
+{% block extra_head %}
+<style>
+  @keyframes feedSlideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .feed-item-new { animation: feedSlideIn 0.35s ease-out both; }
+
+  @keyframes dotPop {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.5); background: rgba(255,255,255,0.9); }
+    70%  { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
+    100% { background: rgba(255,255,255,0.25); box-shadow: none; }
+  }
+  .feed-dot-pop { animation: dotPop 1.2s ease-out both; }
+
+  #sse-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--dimmed);
+  }
+  #sse-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--dimmed);
+    flex-shrink: 0;
+  }
+  #sse-dot.live { background: #6ee895; box-shadow: 0 0 0 3px rgba(110,232,149,0.2); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-mid">
+
+  <!-- Header -->
+  <div style="margin-bottom: 28px;">
+    <p class="section-label">{{ pot.get_occasion_type_display }}</p>
+    <h1 class="page-title" style="font-size: 32px; margin-bottom: 8px;">{{ pot.name }}</h1>
+    {% if pot.description %}
+      <p class="page-sub">{{ pot.description }}</p>
+    {% endif %}
+  </div>
+
+  <!-- Stats + progress -->
+  <div class="card card-p" style="margin-bottom: 16px;">
+    <div style="display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: {% if pot.target_amount %}16px{% else %}0{% endif %};">
+      <div>
+        <p class="stat-label">Collected</p>
+        <p id="pot-total" style="font-size: 28px; font-weight: 300; color: #fff; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">
+          ₦{{ pot.total_collected|floatformat:0 }}
+        </p>
+      </div>
+      {% if pot.target_amount %}
+      <div>
+        <p class="stat-label">Target</p>
+        <p style="font-size: 28px; font-weight: 300; color: var(--muted); letter-spacing: -0.03em;">
+          ₦{{ pot.target_amount|floatformat:0 }}
+        </p>
+      </div>
+      {% endif %}
+      <div>
+        <p class="stat-label">Contributors</p>
+        <p id="contributor-count" style="font-size: 28px; font-weight: 300; color: #fff; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">
+          {{ pot.contributor_count }}
+        </p>
+      </div>
+    </div>
+
+    {% if pot.target_amount and pot.target_amount > 0 %}
+      {% widthratio pot.total_collected pot.target_amount 100 as pct %}
+      <div class="progress-track"
+           data-target="{{ pot.target_amount }}">
+        <div id="progress-bar" class="progress-fill" style="width: {{ pct|default:0 }}%"></div>
+      </div>
+      <p id="progress-pct" style="font-size: 11px; color: var(--dimmed); margin-top: 6px;">
+        {{ pct|default:0 }}% of target
+      </p>
+    {% endif %}
+  </div>
+
+  <!-- CTA -->
+  {% if pot.status == 'active' %}
+    <a href="{% url 'pots:join_pot' pot.slug %}" class="btn btn-white btn-lg btn-block" style="margin-bottom: 32px;">
+      {% if pot.pot_type == 'contribution' %}Contribute to this pot{% else %}Make a pledge{% endif %} →
+    </a>
+  {% else %}
+    <div class="card card-p" style="text-align: center; margin-bottom: 32px; color: var(--muted); font-size: 14px;">
+      This pot is now closed.
+    </div>
+  {% endif %}
+
+  <!-- Live feed -->
+  <div>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+      <h2 style="font-size: 13px; font-weight: 400; color: var(--dimmed); letter-spacing: 0.08em; text-transform: uppercase;">
+        Live feed
+      </h2>
+      {% if pot.status == 'active' %}
+        <span id="sse-status">
+          <span id="sse-dot"></span>
+          <span id="sse-label">Connecting…</span>
+        </span>
+      {% endif %}
+    </div>
+
+    <div class="card" style="overflow: hidden;">
+      <ul id="feed-list" class="feed-list" style="padding: 8px 20px;">
+        {% for contributor in recent_contributors %}
+          <li class="feed-item">
+            <span class="feed-dot"></span>
+            <span class="feed-name">{{ contributor.display_name }}</span>
+            <span class="feed-time">{{ contributor.created_at|date:"M j, H:i" }}</span>
+          </li>
+        {% empty %}
+          <li id="feed-empty" style="text-align: center; color: var(--muted); padding: 32px 0; font-size: 14px;">
+            No contributions yet — be the first.
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+{% if pot.status == 'active' %}
+<script>
+(function () {
+  var slug      = {{ pot.slug|json_script:"pot-slug" }};
+  slug          = JSON.parse(document.getElementById('pot-slug').textContent);
+  var feedList  = document.getElementById('feed-list');
+  var potTotal  = document.getElementById('pot-total');
+  var contCount = document.getElementById('contributor-count');
+  var progBar   = document.getElementById('progress-bar');
+  var progPct   = document.getElementById('progress-pct');
+  var sseDot    = document.getElementById('sse-dot');
+  var sseLabel  = document.getElementById('sse-label');
+
+  function setStatus(live) {
+    if (!sseDot) return;
+    sseDot.className = live ? 'live' : '';
+    sseLabel.textContent = live ? 'Live' : 'Reconnecting…';
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function fmtNaira(val) {
+    return '₦' + Math.round(parseFloat(val)).toLocaleString('en-NG');
+  }
+
+  var source = new EventSource('/p/' + slug + '/feed/');
+
+  source.onopen = function () { setStatus(true); };
+  source.onerror = function () { setStatus(false); };
+
+  source.onmessage = function (e) {
+    var data;
+    try { data = JSON.parse(e.data); } catch (_) { return; }
+
+    // Update running totals
+    if (data.new_total != null && potTotal) {
+      potTotal.textContent = fmtNaira(data.new_total);
+    }
+    if (data.new_count != null && contCount) {
+      contCount.textContent = data.new_count;
+    }
+    if (data.progress_pct != null) {
+      var pct = Math.min(100, data.progress_pct);
+      if (progBar)  progBar.style.width = pct + '%';
+      if (progPct)  progPct.textContent = pct + '% of target';
+    }
+
+    // Remove empty state placeholder
+    var empty = document.getElementById('feed-empty');
+    if (empty) empty.remove();
+
+    // Prepend new feed entry
+    var name = data.anonymous ? 'Anonymous' : escHtml(data.name || 'Someone');
+    var li   = document.createElement('li');
+    li.className = 'feed-item feed-item-new';
+    li.innerHTML  = '<span class="feed-dot feed-dot-pop"></span>'
+                  + '<span class="feed-name">' + name + '</span>'
+                  + '<span class="feed-time">just now</span>';
+    feedList.prepend(li);
+
+    // Cap visible feed at 20 entries
+    var items = feedList.querySelectorAll('.feed-item');
+    if (items.length > 20) items[items.length - 1].remove();
+  };
+})();
+</script>
+{% endif %}
+
+{% endblock %}

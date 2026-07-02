@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New contribution — {{ pot.name }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e8e8e8;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#000;padding:22px 32px;">
+            <p style="margin:0;color:#fff;font-size:17px;font-weight:500;letter-spacing:-0.02em;">FillPot</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px;">
+
+            <p style="margin:0 0 6px;font-size:13px;color:#999;letter-spacing:0.06em;text-transform:uppercase;">{{ pot.get_occasion_type_display }}</p>
+            <h1 style="margin:0 0 6px;font-size:22px;font-weight:400;color:#111;letter-spacing:-0.02em;">{{ pot.name }}</h1>
+            <p style="margin:0 0 28px;font-size:15px;color:#555;">Hi {{ organiser.full_name }},</p>
+
+            <!-- Payment highlight -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border:1px solid #eee;border-radius:10px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:24px;">
+                  <p style="margin:0 0 4px;font-size:13px;color:#888;">
+                    <strong style="color:#111;">{{ contributor.display_name }}</strong> just contributed
+                  </p>
+                  <p style="margin:0;font-size:32px;font-weight:300;color:#111;letter-spacing:-0.03em;">
+                    ₦{{ payment.amount_naira|floatformat:0 }}
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Running total -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="font-size:13px;color:#666;">Total collected</td>
+                      <td align="right" style="font-size:13px;font-weight:500;color:#111;">
+                        ₦{{ pot.total_collected|floatformat:0 }}{% if pot.target_amount %} <span style="color:#bbb;font-weight:400;">of ₦{{ pot.target_amount|floatformat:0 }}</span>{% endif %}
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="font-size:13px;color:#666;">Contributors</td>
+                      <td align="right" style="font-size:13px;font-weight:500;color:#111;">{{ pot.contributor_count }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            {% if pot.target_amount and pot.target_amount > 0 %}
+            <!-- Progress bar -->
+            {% widthratio pot.total_collected pot.target_amount 100 as pct %}
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+              <tr>
+                <td>
+                  <div style="background:#f0f0f0;border-radius:3px;height:4px;overflow:hidden;">
+                    <div style="background:#111;height:4px;width:{{ pct|default:0 }}%;border-radius:3px;"></div>
+                  </div>
+                  <p style="margin:5px 0 0;font-size:11px;color:#bbb;">{{ pct|default:0 }}% of target</p>
+                </td>
+              </tr>
+            </table>
+            {% endif %}
+
+            {% if site_url %}
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td>
+                  <a href="{{ site_url }}/manage/{{ pot.slug }}/"
+                     style="display:inline-block;background:#000;color:#fff;text-decoration:none;padding:11px 22px;border-radius:999px;font-size:13px;font-weight:500;">
+                    Manage your pot →
+                  </a>
+                </td>
+              </tr>
+            </table>
+            {% endif %}
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:16px 32px;border-top:1px solid #f0f0f0;background:#fafafa;">
+            <p style="margin:0;font-size:12px;color:#bbb;">FillPot · Powered by Nomba payment infrastructure</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

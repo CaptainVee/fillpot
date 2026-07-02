@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Withdraw — {{ pot.name }}{% endblock %}
+
+{% block content %}
+<a href="{% url 'pots:organiser_detail' pot.slug %}" class="back-link">← {{ pot.name }}</a>
+
+{% if withdrawal and withdrawal.status != 'failed' %}
+
+  <!-- ── Read-only status view (PENDING / SUCCESS) ── -->
+  <h1 class="page-title" style="margin-top: 12px;">Withdrawal</h1>
+
+  <div class="card card-p" style="max-width: 500px; margin-top: 24px;">
+
+    {% if withdrawal.status == 'pending' %}
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+      <div style="width: 10px; height: 10px; border-radius: 50%; background: #facc15; flex-shrink: 0; animation: pulse 1.5s infinite;"></div>
+      <span style="font-size: 14px; color: var(--fg);">Transfer in progress</span>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6;">
+      Funds are on their way to <strong style="color: var(--fg);">{{ withdrawal.account_name }}</strong>
+      at {{ withdrawal.account_number }} — this usually settles within a few minutes.
+    </p>
+
+    {% elif withdrawal.status == 'success' %}
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+      <div style="width: 10px; height: 10px; border-radius: 50%; background: #4ade80; flex-shrink: 0;"></div>
+      <span style="font-size: 14px; color: #4ade80; font-weight: 500;">Withdrawn successfully</span>
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <p style="margin: 0 0 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Amount</p>
+          <p style="margin: 0; font-size: 16px; color: var(--fg);">₦{{ withdrawal.amount_naira|floatformat:0 }}</p>
+        </div>
+        <div>
+          <p style="margin: 0 0 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Account</p>
+          <p style="margin: 0; font-size: 15px; font-family: 'Courier New', monospace; color: var(--fg);">{{ withdrawal.account_number }}</p>
+        </div>
+        <div>
+          <p style="margin: 0 0 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Account name</p>
+          <p style="margin: 0; font-size: 14px; color: var(--fg);">{{ withdrawal.account_name }}</p>
+        </div>
+        <div>
+          <p style="margin: 0 0 3px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;">Requested</p>
+          <p style="margin: 0; font-size: 14px; color: var(--fg);">{{ withdrawal.requested_at|date:"M j, Y H:i" }}</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+{% else %}
+
+  <!-- ── Withdrawal form (new or retry after failure) ── -->
+  <h1 class="page-title" style="margin-top: 12px;">Withdraw funds</h1>
+
+  {% if withdrawal %}
+  <!-- FAILED state notice -->
+  <div style="margin-top: 16px; padding: 12px 16px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; max-width: 500px;">
+    <p style="margin: 0; font-size: 13px; color: #f87171;">
+      Previous transfer failed{% if withdrawal.failure_reason %}: {{ withdrawal.failure_reason }}{% endif %}
+    </p>
+    <p style="margin: 6px 0 0; font-size: 12px; color: var(--muted);">You can try again with different bank details below.</p>
+  </div>
+  {% endif %}
+
+  <!-- Balance summary -->
+  <div class="stat-box" style="max-width: 500px; margin: 20px 0;">
+    <p class="stat-label">Available to withdraw</p>
+    <p class="stat-value">₦{{ pot.total_collected|floatformat:0 }}</p>
+    {% if pot.contributor_count %}
+    <p style="margin: 6px 0 0; font-size: 12px; color: var(--muted);">
+      from {{ pot.contributor_count }} contributor{{ pot.contributor_count|pluralize }}
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- Warning -->
+  <p style="max-width: 500px; font-size: 13px; color: var(--muted); margin: 0 0 24px; line-height: 1.6;">
+    Once confirmed, funds will be transferred to your bank account via Nomba. This action cannot be undone.
+  </p>
+
+  <!-- Form -->
+  <form method="post" action="{% url 'pots:withdrawal' pot.slug %}"
+        style="max-width: 500px;"
+        onsubmit="return validateWithdrawal(this)">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="field-error" style="margin-bottom: 16px;">
+      {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="form-stack">
+
+      <!-- Bank select -->
+      <div class="form-group">
+        <label class="form-label" for="id_bank_code">Bank</label>
+        <select name="bank_code" id="id_bank_code" required
+                hx-get="{% url 'pots:bank_lookup' pot.slug %}"
+                hx-trigger="change"
+                hx-include="[name='account_number']"
+                hx-target="#bank-name-result"
+                hx-swap="innerHTML">
+          {% for value, label in form.fields.bank_code.choices %}
+          <option value="{{ value }}"{% if form.bank_code.value == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% if form.bank_code.errors %}
+        <p class="field-error">{{ form.bank_code.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Account number -->
+      <div class="form-group">
+        <label class="form-label" for="id_account_number">Account number</label>
+        <input type="text" name="account_number" id="id_account_number"
+               maxlength="10" pattern="\d{10}" inputmode="numeric"
+               placeholder="0000000000"
+               value="{{ form.account_number.value|default:'' }}"
+               required
+               hx-get="{% url 'pots:bank_lookup' pot.slug %}"
+               hx-trigger="input changed delay:600ms[this.value.length===10]"
+               hx-include="[name='bank_code']"
+               hx-target="#bank-name-result"
+               hx-swap="innerHTML">
+        {% if form.account_number.errors %}
+        <p class="field-error">{{ form.account_number.errors.0 }}</p>
+        {% endif %}
+        <!-- HTMX injects the resolved name + hidden account_name input here -->
+        <div id="bank-name-result">
+          {% if form.account_name.value %}
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.25);border-radius:8px;">
+            <span style="color:#4ade80;font-size:14px;">✓</span>
+            <span style="font-size:14px;color:var(--fg);font-weight:500;">{{ form.account_name.value }}</span>
+          </div>
+          <input type="hidden" name="account_name" value="{{ form.account_name.value }}">
+          {% endif %}
+        </div>
+        {% if form.account_name.errors %}
+        <p class="field-error">{{ form.account_name.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" class="btn-white btn-block btn-lg" id="submit-btn">
+        Confirm and withdraw
+      </button>
+
+      <p style="text-align: center; font-size: 12px; color: var(--muted); margin: 0;">
+        Make sure the account name above matches your intended recipient before confirming.
+      </p>
+
+    </div>
+  </form>
+
+{% endif %}
+
+<script>
+function validateWithdrawal(form) {
+  var accountName = form.querySelector('[name="account_name"]');
+  if (!accountName || !accountName.value.trim()) {
+    alert('Please wait for the account name to verify before submitting.');
+    return false;
+  }
+  var btn = document.getElementById('submit-btn');
+  if (btn) {
+    btn.textContent = 'Initiating transfer…';
+    btn.disabled = true;
+  }
+  return true;
+}
+</script>
+
+<style>
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+</style>
+
+{% endblock %}

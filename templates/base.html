@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}FillPot{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #000;
+      --text: #fff;
+      --muted: #888;
+      --dimmed: #444;
+      --card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --border-mid: rgba(255,255,255,0.14);
+      --border-bright: rgba(255,255,255,0.24);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: #000;
+      background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    /* ── NAV ──────────────────────────────────────── */
+    .app-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(0,0,0,0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .app-nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 40px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 17px;
+      font-weight: 500;
+      color: #fff;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .nav-username {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .nav-link {
+      font-size: 13px;
+      color: #999;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-link:hover { color: #fff; }
+
+    /* ── BUTTONS ──────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 20px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font);
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s, border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    .btn-white  { background: #fff; color: #000; }
+    .btn-white:hover { opacity: 0.82; color: #000; }
+    .btn-ghost  {
+      background: transparent;
+      color: #ccc;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.42); color: #fff; }
+    .btn-danger {
+      background: rgba(220,60,60,0.15);
+      color: #f88;
+      border: 1px solid rgba(220,60,60,0.25);
+    }
+    .btn-danger:hover { background: rgba(220,60,60,0.25); }
+    .btn-lg { padding: 13px 28px; font-size: 15px; }
+    .btn-block { width: 100%; }
+
+    /* ── MAIN LAYOUT ──────────────────────────────── */
+    .app-main {
+      padding-top: 80px;
+      padding-bottom: 80px;
+      min-height: 100vh;
+    }
+    .page-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 40px;
+    }
+    .content-narrow { max-width: 460px; margin: 0 auto; }
+    .content-mid    { max-width: 680px; margin: 0 auto; }
+
+    /* ── FLASH MESSAGES ───────────────────────────── */
+    .messages { margin-bottom: 24px; display: flex; flex-direction: column; gap: 10px; }
+    .alert {
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      border: 1px solid;
+    }
+    .alert-success {
+      background: rgba(80,200,120,0.08);
+      border-color: rgba(80,200,120,0.2);
+      color: #6ee895;
+    }
+    .alert-error, .alert-warning {
+      background: rgba(220,60,60,0.08);
+      border-color: rgba(220,60,60,0.2);
+      color: #f88;
+    }
+
+    /* ── CARDS ────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .card-p { padding: 24px; }
+    .card-hover {
+      transition: border-color 0.2s ease, transform 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .card-hover:hover {
+      border-color: var(--border-bright);
+      transform: scale(1.005);
+    }
+
+    /* ── TYPOGRAPHY ───────────────────────────────── */
+    .page-title {
+      font-size: 26px;
+      font-weight: 300;
+      letter-spacing: -0.025em;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .page-sub  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .section-label {
+      font-size: 11px;
+      color: var(--dimmed);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .back-link {
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.2s;
+      margin-bottom: 20px;
+    }
+    .back-link:hover { color: #fff; }
+
+    /* ── FORMS ────────────────────────────────────── */
+    .form-stack { display: flex; flex-direction: column; gap: 20px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label {
+      font-size: 13px;
+      color: #bbb;
+      font-weight: 400;
+    }
+    .form-label .req { color: var(--dimmed); }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="datetime-local"],
+    select,
+    textarea {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: #fff;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: var(--font);
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      -webkit-appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(255,255,255,0.38);
+      background: rgba(255,255,255,0.07);
+    }
+    input::placeholder, textarea::placeholder { color: #444; }
+    select option { background: #111; color: #fff; }
+    textarea { resize: vertical; min-height: 90px; }
+
+    /* Checkbox */
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      border-radius: 4px;
+      accent-color: #fff;
+      cursor: pointer;
+    }
+
+    .field-error { font-size: 12px; color: #f88; }
+    .help-text   { font-size: 12px; color: var(--dimmed); }
+    .form-error-banner {
+      background: rgba(220,60,60,0.08);
+      border: 1px solid rgba(220,60,60,0.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #f88;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .checkbox-row label {
+      font-size: 13px;
+      color: #bbb;
+      cursor: pointer;
+      line-height: 1.5;
+      padding-top: 1px;
+    }
+
+    /* ── STATS GRID ───────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+    }
+    .stat-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .stat-label { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 6px; }
+    .stat-value { font-size: 22px; font-weight: 300; letter-spacing: -0.02em; color: #fff; }
+
+    /* ── PROGRESS ─────────────────────────────────── */
+    .progress-track {
+      height: 3px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: rgba(255,255,255,0.5);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+
+    /* ── BADGES ───────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid;
+    }
+    .badge-active     { background: rgba(80,200,120,0.1);  color: #6ee895; border-color: rgba(80,200,120,0.25); }
+    .badge-closed     { background: rgba(150,150,150,0.1); color: #777;    border-color: rgba(150,150,150,0.2); }
+    .badge-cancelled  { background: rgba(220,60,60,0.1);   color: #f88;    border-color: rgba(220,60,60,0.2); }
+    .badge-confirmed  { background: rgba(80,200,120,0.1);  color: #6ee895; border-color: rgba(80,200,120,0.25); }
+    .badge-partial    { background: rgba(250,200,60,0.1);  color: #facc3c; border-color: rgba(250,200,60,0.2); }
+    .badge-overpaid   { background: rgba(250,150,50,0.1);  color: #fa9632; border-color: rgba(250,150,50,0.2); }
+    .badge-pending    { background: rgba(150,150,150,0.1); color: #777;    border-color: rgba(150,150,150,0.2); }
+    .badge-complete   { background: rgba(80,200,120,0.1);  color: #6ee895; border-color: rgba(80,200,120,0.25); }
+    .badge-progress   { background: rgba(250,200,60,0.1);  color: #facc3c; border-color: rgba(250,200,60,0.2); }
+
+    /* ── TABLE ────────────────────────────────────── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th {
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--dimmed);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 10px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table th.r { text-align: right; }
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.035);
+      color: #bbb;
+      vertical-align: middle;
+    }
+    .data-table td.r { text-align: right; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .data-table .td-primary { color: #e0e0e0; font-weight: 400; }
+    .data-table .td-muted   { color: var(--muted); }
+
+    /* ── FEED ─────────────────────────────────────── */
+    .feed-list { list-style: none; }
+    .feed-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 14px;
+    }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      flex-shrink: 0;
+    }
+    .feed-name  { flex: 1; color: #ccc; }
+    .feed-time  { font-size: 12px; color: var(--dimmed); }
+
+    /* ── DIVIDER ──────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); }
+
+    /* ── INVITE LINK ──────────────────────────────── */
+    .invite-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .invite-url {
+      flex: 1;
+      font-size: 13px;
+      color: var(--muted);
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .copy-btn {
+      font-size: 12px;
+      color: #999;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: color 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { color: #fff; border-color: var(--border-mid); }
+
+    /* ── VIRTUAL ACCOUNT ──────────────────────────── */
+    .account-reveal {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .account-reveal-label { font-size: 12px; color: var(--muted); margin-bottom: 10px; letter-spacing: 0.04em; }
+    .account-number {
+      font-size: 30px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.1em;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .account-bank  { font-size: 14px; color: #aaa; }
+    .account-note  { font-size: 12px; color: var(--dimmed); margin-top: 14px; line-height: 1.6; }
+
+    /* ── RESPONSIVE ───────────────────────────────── */
+    @media (max-width: 768px) {
+      .app-nav-inner { padding: 0 20px; }
+      .page-wrap     { padding: 0 20px; }
+      .nav-username  { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <nav class="app-nav">
+    <div class="app-nav-inner">
+      <a href="{% if user.is_authenticated %}{% url 'pots:dashboard' %}{% else %}/{% endif %}" class="nav-logo">FillPot</a>
+      <div class="nav-right">
+        {% if user.is_authenticated %}
+          <span class="nav-username">{{ user.full_name }}</span>
+          <a href="{% url 'pots:create' %}" class="btn btn-ghost">New pot</a>
+          <a href="{% url 'accounts:logout' %}" class="nav-link">Sign out</a>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="nav-link">Sign in</a>
+          <a href="{% url 'accounts:signup' %}" class="btn btn-white">Get started</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-main">
+    <div class="page-wrap">
+
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' or message.tags == 'warning' %}alert-error{% else %}alert-success{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+
+    </div>
+  </main>
+
+</body>
+</html>

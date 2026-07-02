@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Create a pot — FillPot{% endblock %}
+
+{% block content %}
+<div class="content-mid" style="padding-top: 20px;">
+
+  <a href="{% url 'pots:dashboard' %}" class="back-link">← My pots</a>
+
+  <div style="margin-bottom: 28px;">
+    <h1 class="page-title">Create a new pot.</h1>
+    <p class="page-sub" style="margin-top: 6px;">
+      Share the invite link once it's live — contributors don't need an account.
+    </p>
+  </div>
+
+  <div class="card card-p">
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% for field in form %}
+        {% if field.field.widget.input_type == 'checkbox' %}
+          <div class="checkbox-row">
+            {{ field }}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          </div>
+        {% else %}
+          <div class="form-group">
+            <label class="form-label" for="{{ field.id_for_label }}">
+              {{ field.label }}{% if field.field.required %}<span class="req"> *</span>{% endif %}
+            </label>
+            {{ field.as_widget }}
+            {% if field.help_text %}
+              <span class="help-text">{{ field.help_text }}</span>
+            {% endif %}
+            {% for error in field.errors %}
+              <span class="field-error">{{ error }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <div style="display: flex; gap: 10px; padding-top: 8px;">
+        <button type="submit" class="btn btn-white">Create pot →</button>
+        <a href="{% url 'pots:dashboard' %}" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

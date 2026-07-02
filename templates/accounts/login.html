@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Sign in — FillPot{% endblock %}
+
+{% block content %}
+<div class="content-narrow" style="padding-top: 40px;">
+
+  <div style="margin-bottom: 32px;">
+    <h1 class="page-title">Welcome back.</h1>
+    <p class="page-sub" style="margin-top: 6px;">Sign in to manage your pots.</p>
+  </div>
+
+  <div class="card card-p">
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="form-error-banner">
+          {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        </div>
+      {% endif %}
+
+      {% for field in form %}
+        <div class="form-group">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field.as_widget }}
+          {% for error in field.errors %}
+            <span class="field-error">{{ error }}</span>
+          {% endfor %}
+        </div>
+      {% endfor %}
+
+      <button type="submit" class="btn btn-white btn-block" style="margin-top: 4px;">
+        Sign in →
+      </button>
+    </form>
+  </div>
+
+  <p style="text-align: center; font-size: 13px; color: var(--muted); margin-top: 20px;">
+    No account? <a href="{% url 'accounts:signup' %}" style="color: #ccc; text-decoration: none;">Create one →</a>
+  </p>
+
+</div>
+{% endblock %}
