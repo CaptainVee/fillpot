@@ -1,16 +1,14 @@
-import asyncio
-import json
 import uuid
 
-import redis.asyncio as aioredis
 import structlog
-from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
-from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from .forms import PotCreateForm, WithdrawalForm
 from .models import Pot, Withdrawal
@@ -194,57 +192,47 @@ def bank_lookup(request, slug):
         })
 
 
-async def pot_feed(request, slug):
+def pot_feed(request, slug):
     """
-    Async SSE endpoint. Streams Redis pub/sub messages as Server-Sent Events.
-    Requires uvicorn (ASGI) — will not work under sync Gunicorn workers.
+    Polling endpoint for the public pot's live feed.
+
+    The frontend calls this every few seconds with ?since=<ISO timestamp of the
+    last poll>. Returns any payments processed after that point plus the pot's
+    current totals, read straight from the DB — no broker/queue required, so
+    this works on plain WSGI hosting with no background workers.
     """
-    try:
-        pot = await sync_to_async(Pot.objects.get)(slug=slug)
-    except Pot.DoesNotExist:
-        raise Http404
+    from payments.models import Payment
 
-    channel = f"fillpot:pot:{pot.id}:feed"
+    pot = get_object_or_404(Pot, slug=slug)
 
-    async def event_stream():
-        r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        pubsub = r.pubsub()
-        await pubsub.subscribe(channel)
-        log.info("sse_connected", slug=slug, channel=channel)
+    since = parse_datetime(request.GET.get("since", "") or "")
+    if since:
+        new_payments = (
+            Payment.objects
+            .filter(contributor__pot=pot, processed_at__gt=since)
+            .select_related("contributor")
+            .order_by("processed_at")[:20]
+        )
+    else:
+        # First poll on page load — just establish a baseline, don't dump history.
+        new_payments = Payment.objects.none()
 
-        try:
-            loop      = asyncio.get_running_loop()
-            last_ping = loop.time()
+    events = [
+        {
+            "name":      payment.contributor.display_name,
+            "anonymous": payment.contributor.is_anonymous,
+        }
+        for payment in new_payments
+    ]
 
-            while True:
-                # Detect client disconnect (Django 4.2+ ASGI)
-                if await request.is_disconnected():
-                    break
+    progress_pct = None
+    if pot.target_amount:
+        progress_pct = int(pot.total_collected / pot.target_amount * 100)
 
-                msg = await pubsub.get_message(ignore_subscribe_messages=True)
-                now = loop.time()
-
-                if msg and msg["type"] == "message":
-                    yield f"data: {msg['data']}\n\n"
-                    last_ping = now
-                elif now - last_ping >= 25:
-                    # SSE comment keeps the connection alive through proxies
-                    yield ": keepalive\n\n"
-                    last_ping = now
-                else:
-                    await asyncio.sleep(0.1)
-
-        except asyncio.CancelledError:
-            pass
-        except Exception:
-            log.exception("sse_stream_error", slug=slug)
-        finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
-            await r.aclose()
-            log.info("sse_disconnected", slug=slug)
-
-    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
-    response["Cache-Control"]      = "no-cache"
-    response["X-Accel-Buffering"]  = "no"   # disables nginx buffering
-    return response
+    return JsonResponse({
+        "events":       events,
+        "new_total":    str(pot.total_collected),
+        "new_count":    pot.contributor_count,
+        "progress_pct": progress_pct,
+        "server_time":  timezone.now().isoformat(),
+    })

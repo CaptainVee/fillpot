@@ -122,18 +122,22 @@ def _handle_funded(event: dict) -> HttpResponse:
             _pot_id      = str(pot.id)
             _contrib_id  = str(contributor.id)
             _payment_id  = str(payment.id)
-            _name        = contributor.display_name
-            _anonymous   = contributor.is_anonymous
-            _amount      = amount_naira
 
             def _on_commit():
-                _publish_feed_event(_pot_id, _name, _anonymous, _amount)
                 from notifications.tasks import (
                     send_contribution_receipt,
                     send_organiser_notification,
                 )
-                send_contribution_receipt.delay(_contrib_id, _payment_id)
-                send_organiser_notification.delay(_pot_id, _contrib_id, _payment_id)
+                # Sent synchronously — no background worker available on this host.
+                # Each call is isolated so one failing send doesn't block the other.
+                try:
+                    send_contribution_receipt(_contrib_id, _payment_id)
+                except Exception:
+                    log.exception("receipt_send_error", contributor_id=_contrib_id)
+                try:
+                    send_organiser_notification(_pot_id, _contrib_id, _payment_id)
+                except Exception:
+                    log.exception("organiser_notify_error", pot_id=_pot_id)
 
             transaction.on_commit(_on_commit)
 
@@ -183,39 +187,3 @@ def _handle_transfer(event: dict, event_type: str) -> HttpResponse:
         log.warning("withdrawal_failed", withdrawal_id=str(withdrawal.id), reason=reason)
 
     return HttpResponse("ok")
-
-
-# ── SSE publish (consumed by Phase 6 async view) ──────────────────────────────
-
-def _publish_feed_event(pot_id: str, display_name: str, is_anonymous: bool, amount_naira):
-    """
-    Called inside transaction.on_commit(), so the DB has already committed the
-    F()-expression updates. We refetch the pot to get the accurate new totals.
-    """
-    try:
-        import redis
-        from pots.models import Pot as _Pot
-
-        pot_row = _Pot.objects.values(
-            "total_collected", "contributor_count", "target_amount"
-        ).get(pk=pot_id)
-
-        new_total  = pot_row["total_collected"]
-        new_count  = pot_row["contributor_count"]
-        target     = pot_row["target_amount"]
-        pct        = int(new_total / target * 100) if target else None
-
-        r = redis.from_url(settings.REDIS_URL)
-        payload = json.dumps({
-            "name":         display_name,
-            "anonymous":    is_anonymous,
-            "amount":       str(amount_naira),
-            "new_total":    str(new_total),
-            "new_count":    new_count,
-            "progress_pct": pct,
-            "ts":           timezone.now().isoformat(),
-        })
-        r.publish(f"fillpot:pot:{pot_id}:feed", payload)
-        log.info("sse_published", pot_id=pot_id, new_total=str(new_total))
-    except Exception:
-        log.exception("sse_publish_failed", pot_id=pot_id)

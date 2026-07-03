@@ -1,18 +1,18 @@
-import time
+import threading
 from decimal import Decimal
 
 import requests
 import structlog
 from django.conf import settings
+from django.core.cache import cache
 
 from .exceptions import NombaAPIError, NombaAuthError, NombaRateLimitError
 
 log = structlog.get_logger(__name__)
 
 _TOKEN_CACHE_KEY = "fillpot:nomba:access_token"
-_TOKEN_LOCK_KEY  = "fillpot:nomba:token:lock"
 _TOKEN_TTL       = 3300  # 55 minutes (tokens last 60 min)
-_LOCK_TTL        = 10    # seconds
+_token_lock      = threading.Lock()
 
 
 def to_kobo(naira: Decimal) -> int:
@@ -23,17 +23,13 @@ def from_kobo(kobo: int) -> Decimal:
     return Decimal(kobo) / 100
 
 
-def _redis():
-    import redis
-    return redis.from_url(settings.REDIS_URL, decode_responses=True)
-
-
 class NombaClient:
     """
     Thin wrapper around the Nomba REST API.
 
-    Token lifecycle: cached in Redis under _TOKEN_CACHE_KEY with a 55-min TTL.
-    On cache miss, a Redis SET NX lock prevents thundering-herd token requests.
+    Token lifecycle: cached via Django's cache framework (in-process memory by
+    default) with a 55-min TTL. A process-local lock prevents concurrent
+    threads in the same worker from all fetching a fresh token at once.
     On 401, the cached token is evicted and the request is retried once.
     """
 
@@ -74,32 +70,21 @@ class NombaClient:
         return token
 
     def _get_token(self) -> str:
-        r = _redis()
-
-        cached = r.get(_TOKEN_CACHE_KEY)
+        cached = cache.get(_TOKEN_CACHE_KEY)
         if cached:
             return cached
 
-        # Acquire lock to prevent stampede
-        acquired = r.set(_TOKEN_LOCK_KEY, "1", nx=True, ex=_LOCK_TTL)
-        if not acquired:
-            # Another worker is fetching — busy-wait up to 5s
-            for _ in range(10):
-                time.sleep(0.5)
-                cached = r.get(_TOKEN_CACHE_KEY)
-                if cached:
-                    return cached
-            raise NombaAuthError("Timed out waiting for token lock to release.")
-
-        try:
+        with _token_lock:
+            # Another thread may have refreshed it while we waited for the lock
+            cached = cache.get(_TOKEN_CACHE_KEY)
+            if cached:
+                return cached
             token = self._fetch_token()
-            r.set(_TOKEN_CACHE_KEY, token, ex=_TOKEN_TTL)
+            cache.set(_TOKEN_CACHE_KEY, token, timeout=_TOKEN_TTL)
             return token
-        finally:
-            r.delete(_TOKEN_LOCK_KEY)
 
     def _evict_token(self):
-        _redis().delete(_TOKEN_CACHE_KEY)
+        cache.delete(_TOKEN_CACHE_KEY)
 
     # ── Base request ─────────────────────────────────────────────────────────
 

@@ -1,5 +1,4 @@
 import structlog
-from celery import shared_task
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -17,15 +16,9 @@ def _send(to: str, subject: str, template_prefix: str, context: dict) -> None:
     msg.send()
 
 
-# ── Tasks ─────────────────────────────────────────────────────────────────────
+# ── Notifications (sent synchronously — no background worker available) ──────
 
-@shared_task(
-    bind=True,
-    autoretry_for=(Exception,),
-    retry_kwargs={"max_retries": 3, "countdown": 60},
-    ignore_result=True,
-)
-def send_contribution_receipt(self, contributor_id: str, payment_id: str) -> None:
+def send_contribution_receipt(contributor_id: str, payment_id: str) -> None:
     """Email the contributor confirming their payment and showing their status."""
     from contributions.models import Contributor
     from payments.models import Payment
@@ -69,16 +62,9 @@ def send_contribution_receipt(self, contributor_id: str, payment_id: str) -> Non
         log.info("receipt_sent", contributor_id=contributor_id, email=contributor.email)
     except Exception as exc:
         log.error("receipt_send_failed", contributor_id=contributor_id, error=str(exc))
-        raise
 
 
-@shared_task(
-    bind=True,
-    autoretry_for=(Exception,),
-    retry_kwargs={"max_retries": 3, "countdown": 60},
-    ignore_result=True,
-)
-def send_organiser_notification(self, pot_id: str, contributor_id: str, payment_id: str) -> None:
+def send_organiser_notification(pot_id: str, contributor_id: str, payment_id: str) -> None:
     """Email the organiser when a new contribution lands."""
     from contributions.models import Contributor
     from payments.models import Payment
@@ -111,4 +97,3 @@ def send_organiser_notification(self, pot_id: str, contributor_id: str, payment_
         log.info("organiser_notified", pot_id=pot_id, organiser=organiser.email)
     except Exception as exc:
         log.error("organiser_notify_failed", pot_id=pot_id, error=str(exc))
-        raise

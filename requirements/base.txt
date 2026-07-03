@@ -1,9 +1,6 @@
 Django==5.2.*
 psycopg2-binary
 dj-database-url
-redis
-celery[redis]
-django-celery-beat
 python-dotenv
 requests
 structlog

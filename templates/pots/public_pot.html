@@ -157,15 +157,12 @@
     return '₦' + Math.round(parseFloat(val)).toLocaleString('en-NG');
   }
 
-  var source = new EventSource('/p/' + slug + '/feed/');
+  // Polling instead of SSE/Redis — no broker required, works on plain WSGI hosting.
+  var POLL_INTERVAL_MS = 4000;
+  var since = new Date().toISOString();
+  var pollTimer = null;
 
-  source.onopen = function () { setStatus(true); };
-  source.onerror = function () { setStatus(false); };
-
-  source.onmessage = function (e) {
-    var data;
-    try { data = JSON.parse(e.data); } catch (_) { return; }
-
+  function applyUpdate(data) {
     // Update running totals
     if (data.new_total != null && potTotal) {
       potTotal.textContent = fmtNaira(data.new_total);
@@ -179,23 +176,56 @@
       if (progPct)  progPct.textContent = pct + '% of target';
     }
 
-    // Remove empty state placeholder
-    var empty = document.getElementById('feed-empty');
-    if (empty) empty.remove();
+    (data.events || []).forEach(function (evt) {
+      // Remove empty state placeholder
+      var empty = document.getElementById('feed-empty');
+      if (empty) empty.remove();
 
-    // Prepend new feed entry
-    var name = data.anonymous ? 'Anonymous' : escHtml(data.name || 'Someone');
-    var li   = document.createElement('li');
-    li.className = 'feed-item feed-item-new';
-    li.innerHTML  = '<span class="feed-dot feed-dot-pop"></span>'
-                  + '<span class="feed-name">' + name + '</span>'
-                  + '<span class="feed-time">just now</span>';
-    feedList.prepend(li);
+      // Prepend new feed entry
+      var name = evt.anonymous ? 'Anonymous' : escHtml(evt.name || 'Someone');
+      var li   = document.createElement('li');
+      li.className = 'feed-item feed-item-new';
+      li.innerHTML  = '<span class="feed-dot feed-dot-pop"></span>'
+                    + '<span class="feed-name">' + name + '</span>'
+                    + '<span class="feed-time">just now</span>';
+      feedList.prepend(li);
 
-    // Cap visible feed at 20 entries
-    var items = feedList.querySelectorAll('.feed-item');
-    if (items.length > 20) items[items.length - 1].remove();
-  };
+      // Cap visible feed at 20 entries
+      var items = feedList.querySelectorAll('.feed-item');
+      if (items.length > 20) items[items.length - 1].remove();
+    });
+  }
+
+  function poll() {
+    fetch('/p/' + slug + '/feed/?since=' + encodeURIComponent(since))
+      .then(function (res) {
+        if (!res.ok) throw new Error('bad status');
+        return res.json();
+      })
+      .then(function (data) {
+        setStatus(true);
+        since = data.server_time;
+        applyUpdate(data);
+      })
+      .catch(function () { setStatus(false); });
+  }
+
+  function startPolling() {
+    poll();
+    pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+  }
+
+  startPolling();
+
+  // Pause polling while the tab isn't visible, resume (with an immediate poll) when it is.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      clearInterval(pollTimer);
+    } else {
+      clearInterval(pollTimer);
+      startPolling();
+    }
+  });
 })();
 </script>
 {% endif %}
