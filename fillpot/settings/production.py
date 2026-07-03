@@ -4,7 +4,7 @@ import dj_database_url
 
 from .base import *
 
-DEBUG = False
+DEBUG = True
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 
