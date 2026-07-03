@@ -40,7 +40,7 @@ def join_pot(request, slug):
             # Returning contributor — show their existing virtual account
             if getattr(form, "already_joined", False):
                 contributor = Contributor.objects.get(pot=pot, email=email)
-                return redirect("contributions:account_displayed", slug=slug, contributor_id=contributor.id)
+                return redirect("pots:contributions:account_displayed", slug=slug, contributor_id=contributor.id)
 
             # New contributor
             contributor = Contributor.objects.create(
@@ -61,7 +61,7 @@ def join_pot(request, slug):
             # Provision a dedicated virtual account via Nomba
             _provision_virtual_account(contributor)
 
-            return redirect("contributions:account_displayed", slug=slug, contributor_id=contributor.id)
+            return redirect("pots:contributions:account_displayed", slug=slug, contributor_id=contributor.id)
     else:
         initial = {}
         if request.user.is_authenticated:
