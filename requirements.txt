@@ -4,3 +4,6 @@ dj-database-url
 python-dotenv
 requests
 structlog
+gunicorn
+whitenoise
+django-debug-toolbar
