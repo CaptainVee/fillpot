@@ -127,10 +127,10 @@
 </div>
 
 {% if pot.status == 'active' %}
+{{ pot.slug|json_script:"pot-slug" }}
 <script>
 (function () {
-  var slug      = {{ pot.slug|json_script:"pot-slug" }};
-  slug          = JSON.parse(document.getElementById('pot-slug').textContent);
+  var slug      = JSON.parse(document.getElementById('pot-slug').textContent);
   var feedList  = document.getElementById('feed-list');
   var potTotal  = document.getElementById('pot-total');
   var contCount = document.getElementById('contributor-count');
