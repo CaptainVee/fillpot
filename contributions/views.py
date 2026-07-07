@@ -108,6 +108,7 @@ def _provision_virtual_account(contributor: Contributor) -> None:
             email=contributor.email,
             customer_ref=str(contributor.id),
         )
+        log.info("virtual_account_raw_result", contributor_id=str(contributor.id), result=result)
 
         # Field names may vary slightly between Nomba sandbox versions
         contributor.virtual_account_id      = result.get("accountId") or result.get("id")
