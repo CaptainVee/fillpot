@@ -142,7 +142,7 @@ class NombaClient:
         data = self._request("POST", "/accounts/virtual", json={
             "accountName":   customer_name[:100],
             "customerEmail": email,
-            "customerRef":   customer_ref,
+            "accountRef":    customer_ref,
         })
         return data
 
