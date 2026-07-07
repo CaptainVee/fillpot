@@ -1,48 +1,79 @@
+import base64
 import hashlib
 import hmac
 import json
+from datetime import timedelta
 
 import structlog
 from django.conf import settings
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import HttpResponse
+from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from contributions import reconciliation
 from contributions.models import Contributor
-from payments.client import from_kobo
+from payments.client import NombaClient, from_kobo
+from payments.exceptions import NombaAPIError
 from payments.models import Payment
 from pots.models import Pot, Withdrawal
 
 log = structlog.get_logger(__name__)
 
 
+def _expected_signature(event: dict, timestamp: str) -> str | None:
+    """
+    Nomba signs on specific fields, not the raw body — colon-joined,
+    HMAC-SHA256, base64-encoded (not hex).
+    """
+    try:
+        merchant    = event["data"]["merchant"]
+        transaction = event["data"]["transaction"]
+        signing_string = ":".join([
+            event.get("event_type") or event.get("eventType", ""),
+            event.get("requestId", ""),
+            merchant["userId"],
+            merchant["walletId"],
+            transaction["transactionId"],
+            transaction["type"],
+            transaction["time"],
+            transaction.get("responseCode", ""),
+            timestamp,
+        ])
+    except KeyError:
+        return None
+
+    digest = hmac.new(
+        settings.NOMBA_WEBHOOK_SECRET.encode(),
+        signing_string.encode(),
+        hashlib.sha256,
+    ).digest()
+    return base64.b64encode(digest).decode()
+
+
 @csrf_exempt
 @require_POST
 def nomba_webhook(request):
-    # ── 1. Capture raw body before any parsing ────────────────────────────────
-    body = request.body
+    log.info("webhook_received for here o", request)
+    # ── 1. Parse JSON — signature is computed over specific fields, not the raw body ──
+    try:
+        event = json.loads(request.body)
+        log.info("webhook_received for here too", event)
+    except json.JSONDecodeError:
+        return HttpResponse(status=400)
 
     # ── 2. HMAC-SHA256 signature verification ─────────────────────────────────
     signature = request.headers.get("nomba-signature", "")
-    expected  = hmac.new(
-        settings.NOMBA_WEBHOOK_SECRET.encode(),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
+    timestamp = request.headers.get("nomba-timestamp", "")
+    expected  = _expected_signature(event, timestamp)
 
-    if not hmac.compare_digest(signature, expected):
-        log.warning("webhook_invalid_signature", received=signature[:16])
+    if expected is None or not hmac.compare_digest(signature, expected):
+        log.warning("webhook_invalid_signature", received=signature[:16], event=event)
         return HttpResponse(status=401)
-
-    # ── 3. Parse JSON ─────────────────────────────────────────────────────────
-    try:
-        event = json.loads(body)
-    except json.JSONDecodeError:
-        return HttpResponse(status=400)
 
     event_type = event.get("eventType") or event.get("event_type", "")
     log.info("webhook_received", event_type=event_type, request_id=event.get("requestId"), event=event)
@@ -187,3 +218,30 @@ def _handle_transfer(event: dict, event_type: str) -> HttpResponse:
         log.warning("withdrawal_failed", withdrawal_id=str(withdrawal.id), reason=reason)
 
     return HttpResponse("ok")
+
+
+# ── Superuser-only: live transaction viewer ──────────────────────────────────
+
+# @login_required
+# @user_passes_test(lambda u: u.is_superuser)
+def transactions_dashboard(request):
+    today = timezone.localdate()
+    date_from = request.GET.get("date_from") or str(today - timedelta(days=7))
+    date_to   = request.GET.get("date_to") or str(today)
+    status    = request.GET.get("status", "success")
+
+    transactions = []
+    error = None
+    try:
+        transactions = NombaClient().get_transactions(date_from, date_to, status=status)
+    except NombaAPIError as exc:
+        error = str(exc)
+        log.error("transactions_dashboard_error", error=error, status_code=exc.status_code)
+
+    return render(request, "payments/transactions.html", {
+        "transactions": transactions,
+        "date_from": date_from,
+        "date_to": date_to,
+        "status": status,
+        "error": error,
+    })

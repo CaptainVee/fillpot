@@ -436,6 +436,9 @@
       <div class="nav-right">
         {% if user.is_authenticated %}
           <span class="nav-username">{{ user.full_name }}</span>
+          {% if user.is_superuser %}
+          <a href="{% url 'transactions_dashboard' %}" class="nav-link">Transactions</a>
+          {% endif %}
           <a href="{% url 'pots:create' %}" class="btn btn-ghost">New pot</a>
           <a href="{% url 'accounts:logout' %}" class="nav-link">Sign out</a>
         {% else %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Transactions — FillPot{% endblock %}
+
+{% block content %}
+
+<div style="margin-bottom: 32px;">
+  <h1 class="page-title">Nomba transactions</h1>
+  <p class="page-sub" style="margin-top: 4px;">Live pull from Nomba — not your local ledger.</p>
+</div>
+
+<form method="get" class="form-stack" style="flex-direction: row; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 28px;">
+  <div class="form-group">
+    <label class="form-label" for="id_date_from">From</label>
+    <input type="date" name="date_from" id="id_date_from" value="{{ date_from }}">
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="id_date_to">To</label>
+    <input type="date" name="date_to" id="id_date_to" value="{{ date_to }}">
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="id_status">Status</label>
+    <select name="status" id="id_status">
+      <option value="success"{% if status == "success" %} selected{% endif %}>Success</option>
+      <option value="pending"{% if status == "pending" %} selected{% endif %}>Pending</option>
+      <option value="failed"{% if status == "failed" %} selected{% endif %}>Failed</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-white">Filter</button>
+</form>
+
+{% if error %}
+<div class="card card-p" style="border-color: rgba(220,60,60,0.3); margin-bottom: 24px;">
+  <p style="color: #f88;">Couldn't reach Nomba: {{ error }}</p>
+</div>
+{% endif %}
+
+{% if transactions %}
+<div class="card" style="overflow-x: auto;">
+  <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+    <thead>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <th style="text-align: left; padding: 12px 16px; color: var(--muted); font-weight: 400;">Time</th>
+        <th style="text-align: left; padding: 12px 16px; color: var(--muted); font-weight: 400;">Reference</th>
+        <th style="text-align: left; padding: 12px 16px; color: var(--muted); font-weight: 400;">Type</th>
+        <th style="text-align: left; padding: 12px 16px; color: var(--muted); font-weight: 400;">Amount</th>
+        <th style="text-align: left; padding: 12px 16px; color: var(--muted); font-weight: 400;">Status</th>
+        <th style="text-align: left; padding: 12px 16px; color: var(--muted); font-weight: 400;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions %}
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 12px 16px; color: #e0e0e0;">
+          {{ tx.time|default:tx.createdAt|default:tx.transactionDate|default:"—" }}
+        </td>
+        <td style="padding: 12px 16px; color: #e0e0e0;">
+          {{ tx.merchantTxRef|default:tx.reference|default:tx.transactionId|default:"—" }}
+        </td>
+        <td style="padding: 12px 16px; color: #e0e0e0;">
+          {{ tx.type|default:tx.transactionType|default:"—" }}
+        </td>
+        <td style="padding: 12px 16px; color: #e0e0e0;">
+          {{ tx.amount|default:tx.amountReceived|default:"—" }}
+        </td>
+        <td style="padding: 12px 16px;">
+          <span class="badge {% if tx.status == 'success' %}badge-active{% elif tx.status == 'failed' %}badge-cancelled{% else %}badge-pending{% endif %}">
+            {{ tx.status|default:"—" }}
+          </span>
+        </td>
+        <td style="padding: 12px 16px;">
+          <details>
+            <summary style="cursor: pointer; color: var(--muted);">raw</summary>
+            <pre style="white-space: pre-wrap; word-break: break-word; font-size: 11px; color: var(--muted); margin-top: 8px;">{{ tx|pprint }}</pre>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif not error %}
+<div class="card card-p">
+  <p class="page-sub">No transactions in this date range.</p>
+</div>
+{% endif %}
+
+{% endblock %}
