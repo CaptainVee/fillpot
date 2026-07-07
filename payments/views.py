@@ -45,7 +45,7 @@ def nomba_webhook(request):
         return HttpResponse(status=400)
 
     event_type = event.get("eventType") or event.get("event_type", "")
-    log.info("webhook_received", event_type=event_type, request_id=event.get("requestId"))
+    log.info("webhook_received", event_type=event_type, request_id=event.get("requestId"), event=event)
 
     # ── 4. Route by event type ────────────────────────────────────────────────
     if event_type == "virtual_account.funded":
