@@ -109,7 +109,7 @@ def _provision_virtual_account(contributor: Contributor) -> None:
             customer_ref=str(contributor.id),
         )
 
-        contributor.virtual_account_id      = result.get("accountId") or result.get("accountHolderId")
+        contributor.virtual_account_id      = result.get("accountId") or result.get("bankAccountNumber")
         contributor.virtual_account_number  = result.get("accountNumber") or result.get("bankAccountNumber", "")
         contributor.virtual_account_bank_name = result.get("bankName", "")
         contributor.save(update_fields=[
