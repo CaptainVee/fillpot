@@ -36,7 +36,7 @@ STORAGES = {
     },
 }
 
-NOMBA_BASE_URL = "https://api.nomba.com/v1"
+NOMBA_BASE_URL = os.environ.get("NOMBA_BASE_URL", "https://sandbox.api.nomba.com/v1")
 NOMBA_ACCOUNT_ID = os.environ["NOMBA_ACCOUNT_ID"]
 NOMBA_CLIENT_ID = os.environ["NOMBA_CLIENT_ID"]
 NOMBA_CLIENT_SECRET = os.environ["NOMBA_CLIENT_SECRET"]

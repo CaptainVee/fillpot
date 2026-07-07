@@ -131,5 +131,6 @@ def _provision_virtual_account(contributor: Contributor) -> None:
             contributor_id=str(contributor.id),
             error=str(exc),
             status_code=exc.status_code,
+            response_body=exc.response_body,
         )
         # Contributor row is already saved — they'll see the "setting up" placeholder.

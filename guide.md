@@ -313,3 +313,61 @@ for tx in data["transactions"]:
 - [ ] Nightly reconciliation job comparing `/transactions` to your ledger
 - [ ] Structured logging on every Nomba call with `merchantTxRef` tagged
 - [ ] Health-check endpoint returning green status
+
+
+Victor Shoaga  [10:34 AM]
+@channel
+
+On creating sub-accounts programmatically. Please don't.
+
+A few of you are asking how to spin up sub-accounts from code. That's the wrong layer, and here's the mental model that'll save you a lot of pain.
+
+The hierarchy:
+
+Nomba Hackathon 2026; the parent ("mothership")
+Your sub-account. This is your business. you already have it (the sub-account ID we emailed you)
+Virtual Account → Customer A (a unique NUBAN they pay into)
+Virtual Account → Customer B
+ Virtual Account → Order #1234 (or one per payment)
+
+
+
+
+
+A sub-account = a business/merchant. In this hackathon, your team has exactly one. It represents you, the merchant. You do not create a sub-account per customer; that's not what they're for.
+To collect from your customers, you issue them virtual accounts. Dedicated bank account numbers (NUBANs) under your sub-account.
+
+
+ The pattern you actually want:
+
+ 1. For each customer (or each order/payment),
+
+create a virtual account under your sub-account. POST /virtual-accounts/sub-account. 
+Tag it with your own accountRef (e.g. the customer id or order id).
+ 2. Give that account number to the customer to pay into.
+ 3. When they pay:
+
+ Customer sends money to their Virtual Account NUBAN
+ Nomba credits YOUR sub-account (now instant settlement)
+ Webhook fires. You match it via accountRef → record the payment
+ 4. Record every payment against that customer in your own DB.
+
+ Two flavours of virtual account:
+ - Dedicated / persistent i.e.  one per customer, reuse forever (wallets, recurring collections).
+ - One-time / per-payment i.e. created for a single order with an expectedAmount + expiryDate (checkout).
+
+ TL;DR: one sub-account (yours) → many virtual accounts (your customers) → reconcile via webhooks. Build on that.
+
+Keep Building :rocket:
+
+sample signature implimentation
+import hmac, hashlib, base64
+KEY = b"NombaHackathon2026"
+def valid(payload, headers):
+    m, t = payload["data"]["merchant"], payload["data"]["transaction"]
+    s = ":".join([payload["event_type"], payload["requestId"], m["userId"], m["walletId"],
+                  t["transactionId"], t["type"], t["time"], t.get("responseCode",""),
+                  headers["nomba-timestamp"]])
+    return hmac.compare_digest(
+        base64.b64encode(hmac.new(KEY, s.encode(), hashlib.sha256).digest()).decode(),
+        headers["nomba-signature"])
