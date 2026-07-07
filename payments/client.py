@@ -180,6 +180,12 @@ class NombaClient:
         `status` is one of: NEW, PENDING_PAYMENT, PAYMENT_SUCCESSFUL, PAYMENT_FAILED,
         PENDING_BILLING, SUCCESS, REFUND. Pass None to skip the status filter.
         """
+        if not settings.NOMBA_SUB_ACCOUNT_ID:
+            raise NombaAPIError(
+                "NOMBA_SUB_ACCOUNT_ID is not configured — this endpoint scopes to your "
+                "sub-account ID in the path, separate from the parent accountId header."
+            )
+
         params = {
             "dateFrom": f"{date_from}T00:00:00.000Z",
             "dateTo":   f"{date_to}T23:59:59.999Z",
@@ -188,7 +194,7 @@ class NombaClient:
         body = {"status": status} if status else {}
         data = self._request(
             "GET",
-            f"/transactions/accounts/{self.account_id}",
+            f"/transactions/accounts/{settings.NOMBA_SUB_ACCOUNT_ID}",
             params=params,
             json=body,
         )

@@ -75,7 +75,10 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 # Nomba
 NOMBA_BASE_URL      = os.environ.get("NOMBA_BASE_URL", "https://sandbox.api.nomba.com/v1")
-NOMBA_ACCOUNT_ID    = os.environ.get("NOMBA_ACCOUNT_ID", "")
+NOMBA_ACCOUNT_ID    = os.environ.get("NOMBA_ACCOUNT_ID", "")  # parent/mothership ID — goes in the accountId header
+# Your team's own sub-account ID — required in the path (not the header) on any
+# "…on the sub-account" endpoint, e.g. transaction listing.
+NOMBA_SUB_ACCOUNT_ID = os.environ.get("NOMBA_SUB_ACCOUNT_ID", "")
 NOMBA_CLIENT_ID     = os.environ.get("NOMBA_CLIENT_ID", "")
 NOMBA_CLIENT_SECRET = os.environ.get("NOMBA_CLIENT_SECRET", "")
 NOMBA_WEBHOOK_SECRET = os.environ.get("NOMBA_WEBHOOK_SECRET", "NombaHackathon2026")
