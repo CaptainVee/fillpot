@@ -20,9 +20,10 @@
   <div class="form-group">
     <label class="form-label" for="id_status">Status</label>
     <select name="status" id="id_status">
-      <option value="success"{% if status == "success" %} selected{% endif %}>Success</option>
-      <option value="pending"{% if status == "pending" %} selected{% endif %}>Pending</option>
-      <option value="failed"{% if status == "failed" %} selected{% endif %}>Failed</option>
+      <option value="SUCCESS"{% if status == "SUCCESS" %} selected{% endif %}>Success</option>
+      <option value="PENDING_PAYMENT"{% if status == "PENDING_PAYMENT" %} selected{% endif %}>Pending</option>
+      <option value="PAYMENT_FAILED"{% if status == "PAYMENT_FAILED" %} selected{% endif %}>Failed</option>
+      <option value="REFUND"{% if status == "REFUND" %} selected{% endif %}>Refund</option>
     </select>
   </div>
   <button type="submit" class="btn btn-white">Filter</button>
@@ -51,19 +52,19 @@
       {% for tx in transactions %}
       <tr style="border-bottom: 1px solid var(--border);">
         <td style="padding: 12px 16px; color: #e0e0e0;">
-          {{ tx.time|default:tx.createdAt|default:tx.transactionDate|default:"—" }}
+          {{ tx.timeCreated|default:"—" }}
         </td>
         <td style="padding: 12px 16px; color: #e0e0e0;">
-          {{ tx.merchantTxRef|default:tx.reference|default:tx.transactionId|default:"—" }}
+          {{ tx.id|default:tx.rrn|default:"—" }}
         </td>
         <td style="padding: 12px 16px; color: #e0e0e0;">
-          {{ tx.type|default:tx.transactionType|default:"—" }}
+          {{ tx.type|default:"—" }}
         </td>
         <td style="padding: 12px 16px; color: #e0e0e0;">
-          {{ tx.amount|default:tx.amountReceived|default:"—" }}
+          {{ tx.amount|default:"—" }}
         </td>
         <td style="padding: 12px 16px;">
-          <span class="badge {% if tx.status == 'success' %}badge-active{% elif tx.status == 'failed' %}badge-cancelled{% else %}badge-pending{% endif %}">
+          <span class="badge {% if tx.status == 'SUCCESS' %}badge-active{% elif tx.status == 'PAYMENT_FAILED' %}badge-cancelled{% else %}badge-pending{% endif %}">
             {{ tx.status|default:"—" }}
           </span>
         </td>

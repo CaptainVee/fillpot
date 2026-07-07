@@ -228,7 +228,7 @@ def transactions_dashboard(request):
     today = timezone.localdate()
     date_from = request.GET.get("date_from") or str(today - timedelta(days=7))
     date_to   = request.GET.get("date_to") or str(today)
-    status    = request.GET.get("status", "success")
+    status    = request.GET.get("status", "SUCCESS")
 
     transactions = []
     error = None

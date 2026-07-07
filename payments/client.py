@@ -172,11 +172,24 @@ class NombaClient:
             "merchantTxRef":   merchant_tx_ref,
         })
 
-    def get_transactions(self, date_from: str, date_to: str, status: str = "success") -> list:
-        """Pull transaction list for nightly reconciliation. Dates: 'YYYY-MM-DD'."""
-        data = self._request("GET", "/transactions", params={
-            "dateFrom": date_from,
-            "dateTo":   date_to,
-            "status":   status,
-        })
-        return data.get("transactions", data) if isinstance(data, dict) else data
+    def get_transactions(self, date_from: str, date_to: str, status: str = "SUCCESS", limit: int = 100) -> list:
+        """
+        Pull transaction list for nightly reconciliation. Dates: 'YYYY-MM-DD' (UTC day boundaries).
+        Real endpoint per developer.nomba.com: GET /transactions/accounts/{subAccountId},
+        dateFrom/dateTo/limit/cursor as query params, status/type/etc. as a JSON body on the GET.
+        `status` is one of: NEW, PENDING_PAYMENT, PAYMENT_SUCCESSFUL, PAYMENT_FAILED,
+        PENDING_BILLING, SUCCESS, REFUND. Pass None to skip the status filter.
+        """
+        params = {
+            "dateFrom": f"{date_from}T00:00:00.000Z",
+            "dateTo":   f"{date_to}T23:59:59.999Z",
+            "limit":    limit,
+        }
+        body = {"status": status} if status else {}
+        data = self._request(
+            "GET",
+            f"/transactions/accounts/{self.account_id}",
+            params=params,
+            json=body,
+        )
+        return data.get("results", data) if isinstance(data, dict) else data
